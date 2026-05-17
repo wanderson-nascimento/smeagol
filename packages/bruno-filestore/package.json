@@ -46,8 +46,8 @@
   "dependencies": {
     "@types/nanoid": "^2.1.0",
     "@usebruno/lang": "0.12.0",
-    "ajv": "^8.17.1",
-    "lodash": "^4.17.21",
+    "ajv": "^8.18.0",
+    "lodash": "^4.18.1",
     "yaml": "^2.3.4"
   }
 }

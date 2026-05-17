@@ -45,7 +45,7 @@
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "aws4-axios": "^3.3.15",
-    "axios": "1.13.6",
+    "axios": "1.16.1",
     "axios-ntlm": "^1.4.2",
     "chai": "^4.3.7",
     "chokidar": "^3.5.3",
@@ -67,11 +67,11 @@
     "iconv-lite": "^0.6.3",
     "is-valid-path": "^0.1.1",
     "js-yaml": "^4.1.1",
-    "lodash": "^4.17.21",
+    "lodash": "^4.18.1",
     "mime-types": "^2.1.35",
     "nanoid": "3.3.8",
-    "qs": "^6.14.1",
-    "simple-git": "3.32.3",
+    "qs": "^6.15.2",
+    "simple-git": "3.36.0",
     "socks-proxy-agent": "^8.0.2",
     "tough-cookie": "^6.0.0",
     "uuid": "^10.0.0",
@@ -81,8 +81,8 @@
     "dmg-license": "^1.0.11"
   },
   "devDependencies": {
-    "electron": "~37.6.1",
-    "electron-builder": "^24.13.3",
+    "electron": "~39.8.10",
+    "electron-builder": "^26.8.1",
     "electron-devtools-installer": "^4.0.0"
   }
 }
