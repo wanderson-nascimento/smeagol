@@ -4,6 +4,7 @@ const path = require('path');
 const yaml = require('js-yaml');
 const { forOwn, cloneDeep } = require('lodash');
 const { getRunnerSummary } = require('@usebruno/common/runner');
+const loadIterationRows = require('../utils/load-iteration-rows');
 const { exists, isFile, isDirectory } = require('../utils/filesystem');
 const { runSingleRequest } = require('../runner/run-single-request');
 const { getEnvVars } = require('../utils/bru');
@@ -246,6 +247,14 @@ const builder = async (yargs) => {
       type: 'boolean',
       description: 'Allow verbose output for debugging purposes'
     })
+    .option('csv-file-path', {
+      type: 'string',
+      description: 'CSV data file for data-driven collection runs'
+    })
+    .option('json-file-path', {
+      type: 'string',
+      description: 'JSON data file for data-driven collection runs'
+    })
     .example('$0 run request.bru', 'Run a request')
     .example('$0 run request.bru --env local', 'Run a request with the environment set to local')
     .example('$0 run request.bru --env-file env.bru', 'Run a request with the environment from env.bru file')
@@ -339,8 +348,12 @@ const handler = async function (argv) {
       delay,
       tags: includeTags,
       excludeTags,
-      verbose
+      verbose,
+      csvFilePath: csvFilePathOption,
+      jsonFilePath: jsonFilePathOption
     } = argv;
+    const csvFilePath = csvFilePathOption;
+    const jsonFilePath = jsonFilePathOption;
     const collectionPath = process.cwd();
 
     let collection = createCollectionJsonFromPathname(collectionPath);
@@ -600,7 +613,6 @@ const handler = async function (argv) {
     }
 
     let requestItems = [];
-    let results = [];
 
     if (!paths || !paths.length) {
       paths = ['./'];
@@ -649,6 +661,12 @@ const handler = async function (argv) {
       }
     }
 
+    let currentIterationContext = {
+      iterationVariables: {},
+      iterationIndex: 0,
+      totalIterations: 1
+    };
+
     const runSingleRequestByPathname = async (relativeItemPathname) => {
       const ext = FORMAT_CONFIG[collection.format].ext;
       return new Promise(async (resolve, reject) => {
@@ -669,7 +687,8 @@ const handler = async function (argv) {
             runtime,
             collection,
             runSingleRequestByPathname,
-            globalEnvVars
+            globalEnvVars,
+            currentIterationContext
           );
           resolve(res?.response);
         }
@@ -677,99 +696,147 @@ const handler = async function (argv) {
       });
     };
 
-    let currentRequestIndex = 0;
-    let nJumps = 0; // count the number of jumps to avoid infinite loops
-    while (currentRequestIndex < requestItems.length) {
-      const requestItem = cloneDeep(requestItems[currentRequestIndex]);
-      const { name, pathname } = requestItem;
+    const iterationRows = await loadIterationRows({ csvFilePath, jsonFilePath });
+    const iterationOutputs = [];
+    let aggregateFailed = false;
 
-      const start = process.hrtime();
-      const result = await runSingleRequest(
-        requestItem,
-        collectionPath,
-        runtimeVariables,
-        envVars,
-        processEnvVars,
-        brunoConfig,
-        collectionRoot,
-        runtime,
-        collection,
-        runSingleRequestByPathname,
-        globalEnvVars
-      );
+    for (let iterationIndex = 0; iterationIndex < iterationRows.length; iterationIndex++) {
+      const iterationVariables = iterationRows[iterationIndex];
+      const iterationContext = {
+        iterationVariables,
+        iterationIndex,
+        totalIterations: iterationRows.length
+      };
+      currentIterationContext = iterationContext;
 
-      const isLastRun = currentRequestIndex === requestItems.length - 1;
-      const isValidDelay = !Number.isNaN(delay) && delay > 0;
-      if (isValidDelay && !isLastRun) {
-        console.log(chalk.yellow(`Waiting for ${delay}ms or ${(delay / 1000).toFixed(3)}s before next request.`));
-        await new Promise((resolve) => setTimeout(resolve, delay));
+      if (iterationRows.length > 1) {
+        console.log(chalk.cyan(`\nIteration ${iterationIndex + 1} of ${iterationRows.length}`));
       }
 
-      if (Number.isNaN(delay) && !isLastRun) {
-        console.log(chalk.red(`Ignoring delay because it's not a valid number.`));
-      }
+      let results = [];
+      let currentRequestIndex = 0;
+      let nJumps = 0; // count the number of jumps to avoid infinite loops
+      let iterationBail = false;
 
-      results.push({
-        ...result,
-        runDuration: process.hrtime(start)[0] + process.hrtime(start)[1] / 1e9,
-        suitename: pathname.replace('.bru', ''),
-        name,
-        path: result.test?.filename || path.relative(collectionPath, pathname)
-      });
+      while (currentRequestIndex < requestItems.length) {
+        const requestItem = cloneDeep(requestItems[currentRequestIndex]);
+        const { name, pathname } = requestItem;
 
-      sanitizeResultsForReporter(results, {
-        skipAllHeaders: reporterSkipAllHeaders,
-        skipHeaders: reporterSkipHeaders,
-        skipRequestBody: reporterSkipRequestBody || reporterSkipBody,
-        skipResponseBody: reporterSkipResponseBody || reporterSkipBody
-      });
+        const start = process.hrtime();
+        const result = await runSingleRequest(
+          requestItem,
+          collectionPath,
+          runtimeVariables,
+          envVars,
+          processEnvVars,
+          brunoConfig,
+          collectionRoot,
+          runtime,
+          collection,
+          runSingleRequestByPathname,
+          globalEnvVars,
+          iterationContext
+        );
 
-      // bail if option is set and there is a failure
-      if (bail) {
-        const requestFailure = result?.error && !result?.skipped;
-        const testFailure = result?.testResults?.find((iter) => iter.status === 'fail');
-        const assertionFailure = result?.assertionResults?.find((iter) => iter.status === 'fail');
-        const preRequestTestFailure = result?.preRequestTestResults?.find((iter) => iter.status === 'fail');
-        const postResponseTestFailure = result?.postResponseTestResults?.find((iter) => iter.status === 'fail');
-        if (requestFailure || testFailure || assertionFailure || preRequestTestFailure || postResponseTestFailure) {
+        const isLastRun = currentRequestIndex === requestItems.length - 1;
+        const isValidDelay = !Number.isNaN(delay) && delay > 0;
+        if (isValidDelay && !isLastRun) {
+          console.log(chalk.yellow(`Waiting for ${delay}ms or ${(delay / 1000).toFixed(3)}s before next request.`));
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+
+        if (Number.isNaN(delay) && !isLastRun) {
+          console.log(chalk.red(`Ignoring delay because it's not a valid number.`));
+        }
+
+        results.push({
+          ...result,
+          runDuration: process.hrtime(start)[0] + process.hrtime(start)[1] / 1e9,
+          suitename: pathname.replace('.bru', ''),
+          name,
+          path: result.test?.filename || path.relative(collectionPath, pathname)
+        });
+
+        sanitizeResultsForReporter(results, {
+          skipAllHeaders: reporterSkipAllHeaders,
+          skipHeaders: reporterSkipHeaders,
+          skipRequestBody: reporterSkipRequestBody || reporterSkipBody,
+          skipResponseBody: reporterSkipResponseBody || reporterSkipBody
+        });
+
+        // bail if option is set and there is a failure
+        if (bail) {
+          const requestFailure = result?.error && !result?.skipped;
+          const testFailure = result?.testResults?.find((iter) => iter.status === 'fail');
+          const assertionFailure = result?.assertionResults?.find((iter) => iter.status === 'fail');
+          const preRequestTestFailure = result?.preRequestTestResults?.find((iter) => iter.status === 'fail');
+          const postResponseTestFailure = result?.postResponseTestResults?.find((iter) => iter.status === 'fail');
+          if (requestFailure || testFailure || assertionFailure || preRequestTestFailure || postResponseTestFailure) {
+            iterationBail = true;
+            break;
+          }
+        }
+
+        // determine next request
+        const nextRequestName = result?.nextRequestName;
+
+        if (result?.shouldStopRunnerExecution) {
+          iterationBail = true;
           break;
         }
-      }
 
-      // determine next request
-      const nextRequestName = result?.nextRequestName;
-
-      if (result?.shouldStopRunnerExecution) {
-        break;
-      }
-
-      if (nextRequestName !== undefined) {
-        nJumps++;
-        if (nJumps > 10000) {
-          console.error(chalk.red(`Too many jumps, possible infinite loop`));
-          process.exit(constants.EXIT_STATUS.ERROR_INFINITE_LOOP);
-        }
-        if (nextRequestName === null) {
-          break;
-        }
-        const nextRequestIdx = requestItems.findIndex((iter) => iter.name === nextRequestName);
-        if (nextRequestIdx >= 0) {
-          currentRequestIndex = nextRequestIdx;
+        if (nextRequestName !== undefined) {
+          nJumps++;
+          if (nJumps > 10000) {
+            console.error(chalk.red(`Too many jumps, possible infinite loop`));
+            process.exit(constants.EXIT_STATUS.ERROR_INFINITE_LOOP);
+          }
+          if (nextRequestName === null) {
+            break;
+          }
+          const nextRequestIdx = requestItems.findIndex((iter) => iter.name === nextRequestName);
+          if (nextRequestIdx >= 0) {
+            currentRequestIndex = nextRequestIdx;
+          } else {
+            console.error('Could not find request with name \'' + nextRequestName + '\'');
+            currentRequestIndex++;
+          }
         } else {
-          console.error('Could not find request with name \'' + nextRequestName + '\'');
           currentRequestIndex++;
         }
-      } else {
-        currentRequestIndex++;
+      }
+
+      const summary = printRunSummary(results);
+      iterationOutputs.push({
+        iterationIndex,
+        iterationData: iterationVariables,
+        results,
+        summary
+      });
+
+      if (
+        (summary.failedAssertions + summary.failedTests + summary.failedPreRequestTests + summary.failedPostResponseTests + summary.failedRequests > 0)
+        || (summary?.errorRequests > 0)
+      ) {
+        aggregateFailed = true;
+      }
+
+      if (iterationBail) {
+        break;
       }
     }
 
     const skippedFileResults = createSkippedFileResults(global.brunoSkippedFiles || [], collectionPath);
-    results.push(...skippedFileResults);
+    if (iterationOutputs.length === 1) {
+      iterationOutputs[0].results.push(...skippedFileResults);
+      iterationOutputs[0].summary = printRunSummary(iterationOutputs[0].results);
+    }
 
-    const summary = printRunSummary(results);
     const runCompletionTime = new Date().toISOString();
-    const totalTime = results.reduce((acc, res) => acc + res.response.responseTime, 0);
+    const totalTime = iterationOutputs.reduce(
+      (acc, iter) => acc + iter.results.reduce((sum, res) => sum + (res.response?.responseTime || 0), 0),
+      0
+    );
     console.log(chalk.dim(chalk.grey(`Ran all requests - ${totalTime} ms`)));
 
     // Extract environment name from envVars if available
@@ -777,15 +844,14 @@ const handler = async function (argv) {
 
     const formatKeys = Object.keys(formats);
     if (formatKeys && formatKeys.length > 0) {
-      const outputJson = {
-        summary,
-        results
-      };
+      const primaryOutput = iterationOutputs.length === 1
+        ? { summary: iterationOutputs[0].summary, results: iterationOutputs[0].results }
+        : iterationOutputs;
 
       const reporters = {
-        json: (path) => fs.writeFileSync(path, JSON.stringify(outputJson, null, 2)),
-        junit: (path) => makeJUnitOutput(results, path),
-        html: (path) => makeHtmlOutput(outputJson, path, runCompletionTime, environmentName)
+        json: (path) => fs.writeFileSync(path, JSON.stringify(primaryOutput, null, 2)),
+        junit: (path) => makeJUnitOutput(iterationOutputs[0].results, path),
+        html: (path) => makeHtmlOutput(primaryOutput, path, runCompletionTime, environmentName)
       };
 
       for (const formatter of Object.keys(formats)) {
@@ -815,7 +881,7 @@ const handler = async function (argv) {
       }
     }
 
-    if ((summary.failedAssertions + summary.failedTests + summary.failedPreRequestTests + summary.failedPostResponseTests + summary.failedRequests > 0) || (summary?.errorRequests > 0)) {
+    if (aggregateFailed) {
       process.exit(constants.EXIT_STATUS.ERROR_FAILED_COLLECTION);
     }
   } catch (err) {

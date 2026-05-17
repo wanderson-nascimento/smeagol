@@ -3063,6 +3063,13 @@ export const collectionsSlice = createSlice({
           info.status = 'started';
         }
 
+        if (type === 'iteration-started') {
+          const info = collection.runnerResult.info;
+          info.iterationIndex = action.payload.iterationIndex;
+          info.totalIterations = action.payload.totalIterations;
+          info.iterationData = action.payload.iterationData;
+        }
+
         if (type === 'testrun-ended') {
           const info = collection.runnerResult.info;
           info.status = 'ended';

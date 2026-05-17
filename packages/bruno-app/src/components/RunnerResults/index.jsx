@@ -11,6 +11,8 @@ import StyledWrapper from './StyledWrapper';
 import RunnerTags from './RunnerTags/index';
 import RunConfigurationPanel from './RunConfigurationPanel';
 import Button from 'ui/Button/index';
+import toast from 'react-hot-toast';
+import { parseDataFileContent } from '@usebruno/common/runner';
 
 const getDisplayName = (fullPath, pathname, name = '') => {
   let relativePath = path.relative(fullPath, pathname);
@@ -79,6 +81,9 @@ export default function RunnerResults({ collection }) {
   const dispatch = useDispatch();
   const [selectedItem, setSelectedItem] = useState(null);
   const [delay, setDelay] = useState(null);
+  const [iterationRows, setIterationRows] = useState(null);
+  const [dataFileName, setDataFileName] = useState(null);
+  const dataFileInputRef = useRef(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedRequestItems, setSelectedRequestItems] = useState([]);
   const isReRunningRef = useRef(false);
@@ -187,7 +192,40 @@ export default function RunnerResults({ collection }) {
   const runCollection = () => {
     const savedOrder = get(collection, 'runnerConfiguration.requestItemsOrder', selectedRequestItems);
     dispatch(updateRunnerConfiguration(collection.uid, selectedRequestItems, savedOrder, delay));
-    dispatch(runCollectionFolder(collection.uid, null, true, Number(delay), tags, selectedRequestItems));
+    dispatch(runCollectionFolder(collection.uid, null, true, Number(delay), tags, selectedRequestItems, iterationRows));
+  };
+
+  const handleDataFileSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    const lowerName = file.name.toLowerCase();
+    let type = null;
+    if (lowerName.endsWith('.csv')) {
+      type = 'csv';
+    } else if (lowerName.endsWith('.json')) {
+      type = 'json';
+    } else {
+      toast.error('Select a .csv or .json data file');
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      const { rows } = parseDataFileContent(content, type);
+      setIterationRows(rows);
+      setDataFileName(file.name);
+    } catch (err) {
+      toast.error(err?.message || 'Failed to parse data file');
+    }
+  };
+
+  const clearDataFile = () => {
+    setIterationRows(null);
+    setDataFileName(null);
   };
 
   const runAgain = () => {
@@ -204,7 +242,8 @@ export default function RunnerResults({ collection }) {
         true,
         Number(savedDelay),
         tags,
-        savedSelectedItems
+        savedSelectedItems,
+        iterationRows
       )
     );
   };
@@ -217,6 +256,7 @@ export default function RunnerResults({ collection }) {
       })
     );
     setDelay(null);
+    clearDataFile();
   };
 
   const cancelExecution = () => {
@@ -274,6 +314,28 @@ export default function RunnerResults({ collection }) {
             <div className="runner-section mt-2 mb-6">
               {/* Tags for the collection run */}
               <RunnerTags collectionUid={collection.uid} />
+            </div>
+
+            <div className="runner-section-title mt-6">Data</div>
+            <div className="runner-section mt-2 mb-6">
+              <input
+                ref={dataFileInputRef}
+                type="file"
+                accept=".csv,.json"
+                className="hidden"
+                onChange={handleDataFileSelected}
+              />
+              {dataFileName ? (
+                <div className="text-sm">
+                  <span className="font-medium">{dataFileName}</span>
+                  <span className="ml-2 text-muted">({iterationRows?.length || 0} iterations)</span>
+                  <button type="button" className="ml-3 text-link" onClick={clearDataFile}>Remove</button>
+                </div>
+              ) : (
+                <Button type="button" variant="ghost" onClick={() => dataFileInputRef.current?.click()}>
+                  Attach CSV or JSON
+                </Button>
+              )}
             </div>
 
             <div className="flex flex-row gap-2">

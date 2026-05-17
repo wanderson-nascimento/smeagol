@@ -184,6 +184,44 @@ const addBruShimToContext = (vm, bru) => {
   vm.setProp(bruRunnerObject, 'setNextRequest', runnerSetNextRequest);
   runnerSetNextRequest.dispose();
 
+  const iterationIndexHandle = vm.newNumber(bru.runner.iterationIndex);
+  vm.setProp(bruRunnerObject, 'iterationIndex', iterationIndexHandle);
+  iterationIndexHandle.dispose();
+
+  const totalIterationsHandle = vm.newNumber(bru.runner.totalIterations);
+  vm.setProp(bruRunnerObject, 'totalIterations', totalIterationsHandle);
+  totalIterationsHandle.dispose();
+
+  const iterationDataObject = vm.newObject();
+  const iterationData = bru.runner.iterationData;
+
+  let iterationDataGet = vm.newFunction('get', function (key) {
+    const dumpedKey = key !== undefined ? vm.dump(key) : undefined;
+    return marshallToVm(iterationData.get(dumpedKey), vm);
+  });
+  vm.setProp(iterationDataObject, 'get', iterationDataGet);
+  iterationDataGet.dispose();
+
+  let iterationDataHas = vm.newFunction('has', function (key) {
+    return marshallToVm(iterationData.has(vm.dump(key)), vm);
+  });
+  vm.setProp(iterationDataObject, 'has', iterationDataHas);
+  iterationDataHas.dispose();
+
+  let iterationDataUnset = vm.newFunction('unset', function (key) {
+    iterationData.unset(vm.dump(key));
+  });
+  vm.setProp(iterationDataObject, 'unset', iterationDataUnset);
+  iterationDataUnset.dispose();
+
+  let iterationDataStringify = vm.newFunction('stringify', function () {
+    return marshallToVm(iterationData.stringify(), vm);
+  });
+  vm.setProp(iterationDataObject, 'stringify', iterationDataStringify);
+  iterationDataStringify.dispose();
+
+  vm.setProp(bruRunnerObject, 'iterationData', iterationDataObject);
+
   let visualize = vm.newFunction('visualize', function (htmlString) {
     bru.visualize(vm.dump(htmlString));
   });

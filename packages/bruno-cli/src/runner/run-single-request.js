@@ -94,7 +94,8 @@ const runSingleRequest = async function (
   runtime,
   collection,
   runSingleRequestByPathname,
-  globalEnvVars = {}
+  globalEnvVars = {},
+  iterationContext = {}
 ) {
   const { pathname: itemPathname } = item;
   const relativeItemPathname = path.relative(collectionPath, itemPathname);
@@ -137,6 +138,10 @@ const runSingleRequest = async function (
     let postResponseTestResults = [];
 
     request = await prepareRequest(item, collection);
+
+    request.iterationVariables = iterationContext.iterationVariables || {};
+    request.iterationIndex = iterationContext.iterationIndex ?? 0;
+    request.totalIterations = iterationContext.totalIterations ?? 1;
 
     // Set global environment variables on the request for scripts to access via bru.getGlobalEnvVar()
     request.globalEnvironmentVariables = globalEnvVars;

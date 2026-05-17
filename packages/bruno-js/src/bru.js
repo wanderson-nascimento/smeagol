@@ -4,6 +4,7 @@ const { interpolate: _interpolate } = require('@usebruno/common');
 const { sendRequest, createSendRequest } = require('@usebruno/requests').scripting;
 const { jar: createCookieJar, getCookiesForUrl } = require('@usebruno/requests').cookies;
 const CookieList = require('./cookie-list');
+const IterationData = require('./iteration-data');
 
 const variableNameRegex = /^[\w-.]*$/;
 
@@ -44,7 +45,10 @@ class Bru {
     collectionName,
     promptVariables,
     certsAndProxyConfig,
-    requestUrl
+    requestUrl,
+    iterationVariables,
+    iterationIndex = 0,
+    totalIterations = 1
   }) {
     this.envVariables = envVariables || {};
     this.runtimeVariables = runtimeVariables || {};
@@ -71,7 +75,11 @@ class Bru {
     this.persistentEnvVariables = {};
     // Holds credential IDs to be reset after script execution
     this.oauth2CredentialsToReset = [];
+    this.iterationVariables = iterationVariables || {};
     this.runner = {
+      iterationIndex,
+      totalIterations,
+      iterationData: new IterationData(this.iterationVariables),
       skipRequest: () => {
         this.skipRequest = true;
       },

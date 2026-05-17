@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import get from 'lodash/get';
 import { uuid } from 'utils/common';
 import Modal from 'components/Modal';
 import { useDispatch, useSelector } from 'react-redux';
 import { addTab } from 'providers/ReduxStore/slices/tabs';
 import { runCollectionFolder } from 'providers/ReduxStore/slices/collections/actions';
-import { flattenItems } from 'utils/collections';
 import StyledWrapper from './StyledWrapper';
 import { areItemsLoading } from 'utils/collections';
 import RunnerTags from 'components/RunnerResults/RunnerTags/index';
 import { getRequestItemsForCollectionRun } from 'utils/collections/index';
 import Button from 'ui/Button';
+import toast from 'react-hot-toast';
+import { parseDataFileContent } from '@usebruno/common/runner';
 
 const RunCollectionItem = ({ collectionUid, item, onClose }) => {
   const dispatch = useDispatch();
   const [delay, setDelay] = useState('');
+  const dataFileInputRef = useRef(null);
 
   const collection = useSelector((state) => state.collections.collections?.find((c) => c.uid === collectionUid));
   const isCollectionRunInProgress = collection?.runnerResult?.info?.status && (collection?.runnerResult?.info?.status !== 'ended');
@@ -22,7 +24,7 @@ const RunCollectionItem = ({ collectionUid, item, onClose }) => {
   // tags for the collection run
   const tags = get(collection, 'runnerTags', { include: [], exclude: [] });
 
-  const onSubmit = (recursive) => {
+  const openRunnerTab = () => {
     dispatch(
       addTab({
         uid: uuid(),
@@ -30,10 +32,60 @@ const RunCollectionItem = ({ collectionUid, item, onClose }) => {
         type: 'collection-runner'
       })
     );
+  };
+
+  const onSubmit = (recursive, iterationRows = null) => {
+    openRunnerTab();
     if (!isCollectionRunInProgress) {
-      dispatch(runCollectionFolder(collection.uid, item ? item.uid : null, recursive, delay ? Number(delay) : null, tags));
+      dispatch(
+        runCollectionFolder(
+          collection.uid,
+          item ? item.uid : null,
+          recursive,
+          delay ? Number(delay) : null,
+          tags,
+          null,
+          iterationRows
+        )
+      );
     }
     onClose();
+  };
+
+  const handleRunWithParametersClick = (recursive) => {
+    if (dataFileInputRef.current) {
+      dataFileInputRef.current.dataset.recursive = recursive ? 'true' : 'false';
+      dataFileInputRef.current.click();
+    }
+  };
+
+  const handleDataFileSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    const lowerName = file.name.toLowerCase();
+    let type = null;
+    if (lowerName.endsWith('.csv')) {
+      type = 'csv';
+    } else if (lowerName.endsWith('.json')) {
+      type = 'json';
+    } else {
+      toast.error('Select a .csv or .json data file');
+      return;
+    }
+
+    const recursive = event.target.dataset.recursive === 'true';
+
+    try {
+      const content = await file.text();
+      const { rows } = parseDataFileContent(content, type);
+      onSubmit(recursive, rows);
+    } catch (err) {
+      toast.error(err?.message || 'Failed to parse data file');
+    }
   };
 
   const handleViewRunner = (e) => {
@@ -97,7 +149,15 @@ const RunCollectionItem = ({ collectionUid, item, onClose }) => {
           {/* Tags for the collection run */}
           <RunnerTags collectionUid={collection.uid} className="mb-6" />
 
-          <div className="flex justify-end bruno-modal-footer">
+          <input
+            ref={dataFileInputRef}
+            type="file"
+            accept=".csv,.json"
+            className="hidden"
+            onChange={handleDataFileSelected}
+          />
+
+          <div className="flex flex-wrap justify-end gap-2 bruno-modal-footer">
             <Button type="button" color="secondary" variant="ghost" onClick={onClose} className="mr-3">
               Cancel
             </Button>
@@ -110,6 +170,15 @@ const RunCollectionItem = ({ collectionUid, item, onClose }) => {
                   )
                 : (
                     <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={shouldDisableRecursiveFolderRun}
+                        onClick={() => handleRunWithParametersClick(true)}
+                        className="mr-3"
+                      >
+                        Run with Parameters
+                      </Button>
                       <Button type="submit" disabled={shouldDisableRecursiveFolderRun} onClick={() => onSubmit(true)} className="mr-3">
                         Recursive Run
                       </Button>

@@ -2,6 +2,7 @@ const _ = require('lodash');
 const chai = require('chai');
 const { nanoid } = require('nanoid');
 const Bru = require('../bru');
+const { getRunnerContextFromRequest } = require('../runner-context');
 const BrunoRequest = require('../bruno-request');
 const { evaluateJsTemplateLiteral, evaluateJsExpression, createResponseParser } = require('../utils');
 const { interpolateString } = require('../interpolate-string');
@@ -273,7 +274,8 @@ class AssertRuntime {
       globalEnvironmentVariables,
       promptVariables,
       certsAndProxyConfig,
-      requestUrl: request?.url
+      requestUrl: request?.url,
+      ...getRunnerContextFromRequest(request)
     });
     const req = new BrunoRequest(request);
     const res = createResponseParser(response);

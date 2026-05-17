@@ -4,6 +4,7 @@ const BrunoRequest = require('../bruno-request');
 const BrunoResponse = require('../bruno-response');
 const { cleanJson } = require('../utils');
 const { createBruTestResultMethods } = require('../utils/results');
+const { getRunnerContextFromRequest } = require('../runner-context');
 const { runScriptInNodeVm } = require('../sandbox/node-vm');
 const { executeQuickJsVmAsync } = require('../sandbox/quickjs');
 const { SANDBOX } = require('../utils/sandbox');
@@ -50,7 +51,8 @@ class ScriptRuntime {
       collectionName,
       promptVariables,
       certsAndProxyConfig,
-      requestUrl: request?.url
+      requestUrl: request?.url,
+      ...getRunnerContextFromRequest(request)
     });
     const req = new BrunoRequest(request);
 
@@ -184,7 +186,8 @@ class ScriptRuntime {
       collectionName,
       promptVariables,
       certsAndProxyConfig,
-      requestUrl: request?.url
+      requestUrl: request?.url,
+      ...getRunnerContextFromRequest(request)
     });
     const req = new BrunoRequest(request);
     const res = new BrunoResponse(response);
