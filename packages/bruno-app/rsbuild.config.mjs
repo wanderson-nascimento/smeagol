@@ -1,9 +1,14 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { pluginBabel } from '@rsbuild/plugin-babel';
 import { pluginStyledComponents } from '@rsbuild/plugin-styled-components';
 import { pluginSass } from '@rsbuild/plugin-sass';
-import { pluginNodePolyfill } from '@rsbuild/plugin-node-polyfill'
+import { pluginNodePolyfill } from '@rsbuild/plugin-node-polyfill';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const asyncHooksShim = path.join(__dirname, 'src/shims/async-hooks.js');
 
 export default defineConfig({
   plugins: [
@@ -31,6 +36,12 @@ export default defineConfig({
   },
   tools: {
     rspack: {
+      resolve: {
+        alias: {
+          'node:async_hooks': asyncHooksShim,
+          async_hooks: asyncHooksShim
+        }
+      },
       module: {
         parser: {
           javascript: {
