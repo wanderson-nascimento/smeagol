@@ -1,0 +1,54 @@
+name: Build Windows Executable
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_artifact:
+        description: 'Upload build artifact'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node Dependencies
+        uses: ./.github/actions/common/setup-node-deps
+
+      - name: Build Web App
+        run: npm run build:web
+
+      - name: Copy web build to electron package
+        shell: bash
+        run: |
+          rm -rf packages/bruno-electron/out
+          rm -rf packages/bruno-electron/web
+          mkdir packages/bruno-electron/web
+          cp -r packages/bruno-app/dist/* packages/bruno-electron/web
+
+          # Update static paths
+          find packages/bruno-electron/web -name "*.html" -exec sed -i 's|/static/|static/|g' {} +
+          find packages/bruno-electron/web/static/css -name "*.css" -exec sed -i 's|/static/font|../../static/font|g' {} +
+
+          # Remove sourcemaps
+          find packages/bruno-electron/web -name "*.map" -type f -delete
+
+      - name: Build Windows Installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run dist:win --workspace=packages/bruno-electron
+
+      - name: Upload Windows Installer
+        if: ${{ inputs.upload_artifact != 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: bruno-windows-installer
+          path: packages/bruno-electron/out/*.exe
+          retention-days: 30
