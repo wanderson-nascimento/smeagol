@@ -100,7 +100,7 @@ const config = {
     ]
   },
   win: {
-    artifactName: '${name}_${version}_${arch}_win.${ext}',
+    artifactName: 'smeagol_${version}_${arch}_win.${ext}',
     icon: 'resources/icons/win/icon.ico',
     target: [
       {
