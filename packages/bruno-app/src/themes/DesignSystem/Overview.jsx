@@ -661,7 +661,7 @@ export const BackgroundLayersRender = () => {
                 <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: theme.colors?.text?.warning || '#ffbd2e' }} />
                 <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: theme.colors?.text?.green || '#28c840' }} />
               </div>
-              <div style={{ flex: 1, textAlign: 'center', fontSize: '12px', opacity: 0.5 }}>Bruno</div>
+              <div style={{ flex: 1, textAlign: 'center', fontSize: '12px', opacity: 0.5 }}>Smeagol</div>
             </div>
 
             {/* Main area */}

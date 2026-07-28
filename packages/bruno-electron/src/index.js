@@ -142,9 +142,9 @@ if (useSingleInstance && !gotTheLock) {
   // This is the primary instance (or single instance is disabled)
 
   // Try to remove any existing registrations
-  app.removeAsDefaultProtocolClient('bruno');
-  // Register as default handler for `bruno://` protocol URLs
-  app.setAsDefaultProtocolClient('bruno');
+  app.removeAsDefaultProtocolClient('smeagol');
+  // Register as default handler for `smeagol://` protocol URLs
+  app.setAsDefaultProtocolClient('smeagol');
 
   if (isLinux) {
     try {
@@ -236,7 +236,7 @@ app.on('ready', async () => {
       preload: path.join(__dirname, 'preload.js'),
       webviewTag: true
     },
-    title: 'Bruno',
+    title: 'Smeagol',
     icon: path.join(__dirname, 'about/256x256.png'),
     titleBarStyle: isMac ? 'hiddenInset' : isWindows ? 'hidden' : undefined,
     frame: isLinux ? false : true,

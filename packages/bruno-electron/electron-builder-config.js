@@ -3,8 +3,8 @@ require('dotenv').config({ path: process.env.DOTENV_PATH });
 const skipCodeSigning = process.env.CSC_IDENTITY_AUTO_DISCOVERY === 'false';
 
 const config = {
-  appId: 'com.usebruno.app',
-  productName: 'Bruno',
+  appId: 'com.smeagol.app',
+  productName: 'Smeagol',
   electronVersion: '37.6.1',
   directories: {
     buildResources: 'resources',
@@ -19,7 +19,7 @@ const config = {
   files: ['**/*'],
   ...(skipCodeSigning ? {} : { afterSign: 'notarize.js' }),
   mac: {
-    artifactName: '${name}_${version}_${arch}_${os}.${ext}',
+    artifactName: 'smeagol_${version}_${arch}_${os}.${ext}',
     category: 'public.app-category.developer-tools',
     target: [
       {
@@ -47,9 +47,9 @@ const config = {
     notarize: false,
     protocols: [
       {
-        name: 'Bruno',
+        name: 'Smeagol',
         schemes: [
-          'bruno'
+          'smeagol'
         ]
       }
     ]
@@ -73,14 +73,14 @@ const config = {
     ],
     protocols: [
       {
-        name: 'Bruno',
-        schemes: ['bruno']
+        name: 'Smeagol',
+        schemes: ['smeagol']
       }
     ],
     category: 'Development',
     desktop: {
       entry: {
-        MimeType: 'x-scheme-handler/bruno;'
+        MimeType: 'x-scheme-handler/smeagol;'
       }
     }
   },

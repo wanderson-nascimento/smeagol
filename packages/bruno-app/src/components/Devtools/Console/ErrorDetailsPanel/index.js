@@ -109,7 +109,7 @@ ${error.args ? error.args.map((arg, index) => {
       <div className="section">
         <h4>Report Issue</h4>
         <div className="report-section">
-          <p>Found a bug? Help us improve Bruno by reporting this error on GitHub.</p>
+          <p>Found a bug? Help us improve Smeagol by reporting this error on GitHub.</p>
           <button
             className="report-button"
             onClick={handleReportIssue}
