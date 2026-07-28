@@ -1403,7 +1403,9 @@ const registerNetworkIpc = (mainWindow) => {
             const eventData = {
               collectionUid,
               folderUid,
-              itemUid
+              itemUid,
+              iterationIndex,
+              totalIterations: iterationDataRows.length
             };
 
             let timeStart;

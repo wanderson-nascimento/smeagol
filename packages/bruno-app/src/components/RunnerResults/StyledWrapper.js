@@ -53,6 +53,31 @@ const Wrapper = styled.div`
       color: ${(props) => props.theme.textLink};
     }
   }
+
+  .iteration-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.05rem 0.35rem;
+    border-radius: ${(props) => props.theme.border.radius.sm};
+    border: 1px solid ${(props) => props.theme.border.border0};
+    background-color: ${(props) => props.theme.background.surface0};
+    color: ${(props) => props.theme.colors.text.muted};
+    font-size: ${(props) => props.theme.font.size.xs};
+    font-weight: 600;
+    font-family: monospace;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .endpoint-row {
+    margin-top: 0.125rem;
+
+    .endpoint-url {
+      font-size: ${(props) => props.theme.font.size.xs};
+      font-family: monospace;
+      word-break: break-all;
+    }
+  }
   .danger {
     color: ${(props) => props.theme.colors.text.danger};
   }

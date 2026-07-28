@@ -3084,7 +3084,9 @@ export const collectionsSlice = createSlice({
         if (type === 'request-queued') {
           collection.runnerResult.items.push({
             uid: request.uid,
-            status: 'queued'
+            status: 'queued',
+            iterationIndex: action.payload.iterationIndex ?? 0,
+            totalIterations: action.payload.totalIterations ?? 1
           });
         }
 

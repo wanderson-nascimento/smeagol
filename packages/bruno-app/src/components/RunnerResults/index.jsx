@@ -11,6 +11,7 @@ import StyledWrapper from './StyledWrapper';
 import RunnerTags from './RunnerTags/index';
 import RunConfigurationPanel from './RunConfigurationPanel';
 import Button from 'ui/Button/index';
+import MethodBadge from 'ui/MethodBadge/index';
 import toast from 'react-hot-toast';
 import { parseDataFileContent } from '@usebruno/common/runner';
 
@@ -451,9 +452,11 @@ export default function RunnerResults({ collection }) {
 
           {/* Items list */}
           <div className="overflow-y-auto flex-1 " ref={runnerBodyRef}>
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
+              const iterationIndex = item.iterationIndex ?? 0;
+              const showIterationBadge = (item.totalIterations ?? 1) > 1;
               return (
-                <div key={item.uid}>
+                <div key={`${item.uid}-${iterationIndex}-${index}`}>
                   <div className="item-path mt-2" data-testid="runner-result-item">
                     <div className="flex items-center">
                       <span>
@@ -467,6 +470,11 @@ export default function RunnerResults({ collection }) {
                           ? <IconCircleX className="test-failure" size={20} strokeWidth={1.5} />
                           : null}
                       </span>
+                      {showIterationBadge ? (
+                        <span className="iteration-badge ml-2" title={`Iteration ${iterationIndex + 1} of ${item.totalIterations}`}>
+                          #{iterationIndex + 1}
+                        </span>
+                      ) : null}
                       <span
                         className={`mr-1 ml-2 ${item.status == 'skipped' ? 'skipped-request' : anyTestFailed(item) ? 'danger' : ''}`}
                       >
@@ -486,6 +494,12 @@ export default function RunnerResults({ collection }) {
                         </span>
                       )}
                     </div>
+                    {item.requestSent?.url ? (
+                      <div className="endpoint-row pl-7 flex items-center gap-2">
+                        <MethodBadge method={item.requestSent.method} size="sm" />
+                        <span className="endpoint-url text-muted">{item.requestSent.url}</span>
+                      </div>
+                    ) : null}
                     {areTagsAdded && item?.tags?.length > 0 && (
                       <div className="pl-7 text-xs text-muted">
                         Tags: {item.tags.filter((t) => tags.include.includes(t)).join(', ')}
